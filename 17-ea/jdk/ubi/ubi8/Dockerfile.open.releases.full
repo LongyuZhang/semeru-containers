@@ -18,6 +18,8 @@ FROM registry.access.redhat.com/ubi8/ubi:latest
 # Artifactory credentials to download CRIU binary
 # Set your Artifactory credentials here or pass them at build time
 ARG ARTIFACTORY_TOKEN
+ARG DOCKER_REGISTRY_CREDENTIALS_USR
+ARG DOCKER_REGISTRY_CREDENTIALS_PSW
 
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
@@ -58,8 +60,10 @@ RUN set -eux; \
           ;; \
     esac; \
     cd /tmp; \
-    curl -H "Authorization: Bearer ${ARTIFACTORY_TOKEN}" -LfsSo criu.tar.gz ${CRIU_URL}; \
-    curl -H "Authorization: Bearer ${ARTIFACTORY_TOKEN}" -LfsSo criu.tar.gz.sha256.txt ${CRIU_SHA_URL}; \
+    # curl -H "Authorization: Bearer ${ARTIFACTORY_TOKEN}" -LfsSo criu.tar.gz ${CRIU_URL}; \
+    # curl -H "Authorization: Bearer ${ARTIFACTORY_TOKEN}" -LfsSo criu.tar.gz.sha256.txt ${CRIU_SHA_URL}; \
+    curl --user "${DOCKER_REGISTRY_CREDENTIALS_USR}:${DOCKER_REGISTRY_CREDENTIALS_PSW}" -LfsSo criu.tar.gz ${CRIU_URL}; \
+    curl --user "${DOCKER_REGISTRY_CREDENTIALS_USR}:${DOCKER_REGISTRY_CREDENTIALS_PSW}" -LfsSo criu.tar.gz.sha256.txt ${CRIU_SHA_URL}; \
     sha256sum -c criu.tar.gz.sha256.txt; \
     tar -xzf criu.tar.gz --strip-components=1; \
     cp -R usr/local /usr; \
@@ -78,17 +82,23 @@ ENV JAVA_VERSION 17.0.7.7
 RUN set -eux; \
     ARCH="$(uname -m)"; \
     case "${ARCH}" in \
-       amd64|x86_64) \
-         ESUM='35ac3ac59bb33013166b436a7bd738a5b249bd746dea43fb062729bff6e90552'; \
-         BINARY_URL='https://github.com/ibmruntimes/semeru17-ea-binaries/releases/download/jdk-17.0.7%2B7_april_23-preview_1/ibm-semeru-open-jdk_x64_linux_17.0.7_7_April_23-preview_1.tar.gz'; \
-         ;; \
-       *) \
+        amd64|x86_64) \
+          ESUM='35ac3ac59bb33013166b436a7bd738a5b249bd746dea43fb062729bff6e90552'; \
+          BINARY_URL='https://github.com/ibmruntimes/semeru17-ea-binaries/releases/download/jdk-17.0.7%2B7_april_23-preview_1/ibm-semeru-open-jdk_x64_linux_17.0.7_7_April_23-preview_1.tar.gz'; \
+          ;; \
+        ppc64el|ppc64le) \
+          BINARY_URL='https://openj9-artifactory.osuosl.org/artifactory/ci-openj9/Build_JDK17_ppc64le_linux_criu_Nightly/44/OpenJ9-JDK17-ppc64le_linux_criu-20230422-001736.tar.gz'; \
+          ;; \
+        s390x) \
+          BINARY_URL='https://openj9-artifactory.osuosl.org/artifactory/ci-openj9/Build_JDK17_s390x_linux_criu_Nightly/61/OpenJ9-JDK17-s390x_linux_criu-20230422-003209.tar.gz'; \
+          ;; \
+        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
     curl -LfsSo /tmp/openjdk.tar.gz ${BINARY_URL}; \
-    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+    echo "osuosl jenkins does't offer ESUM"; \
     mkdir -p /opt/java/java-ea; \
     cd /opt/java/java-ea; \
     tar -xf /tmp/openjdk.tar.gz --strip-components=1;
